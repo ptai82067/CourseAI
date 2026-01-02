@@ -60,22 +60,29 @@ func Load() (*Config, error) {
 }
 
 func parseDatabase() DatabaseConfig {
+	databaseURL := os.Getenv("DATABASE_URL")
+
 	// If DATABASE_URL is set, parse it (for Neon, Render, and other managed services)
-	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
-		log.Println("Using DATABASE_URL for database connection (managed service)")
+	if databaseURL != "" {
+		log.Println("✓ DATABASE_URL found - using managed database service")
 		return DatabaseConfig{
 			Host:    databaseURL, // Store the full URL to signal we're using DATABASE_URL
 			SSLMode: "url",       // Marker to use full URL mode
 		}
 	}
 
-	// In production, DATABASE_URL is required
-	if os.Getenv("ENV") == "production" {
-		log.Fatal("DATABASE_URL environment variable must be set in production. Please set DATABASE_URL to your PostgreSQL connection string (e.g., from Neon or Render).")
+	// Check if running on Render (based on common environment variables)
+	isRender := os.Getenv("RENDER") == "true" || os.Getenv("RENDER_GIT_REPO") != ""
+	isProduction := os.Getenv("ENV") == "production" || isRender
+
+	if isProduction {
+		log.Fatal("❌ FATAL: DATABASE_URL environment variable is required in production. " +
+			"Please configure DATABASE_URL in your Render environment variables. " +
+			"Example: postgresql://user:password@host:port/dbname")
 	}
 
 	// Fall back to individual environment variables (development/local setup)
-	log.Println("DATABASE_URL not found, using individual DB_* environment variables (development mode)")
+	log.Println("⚠️  DATABASE_URL not set - falling back to individual DB_* variables (development mode)")
 	return DatabaseConfig{
 		Host:     getEnv("DB_HOST", "localhost"),
 		Port:     getEnv("DB_PORT", "5432"),
@@ -87,12 +94,12 @@ func parseDatabase() DatabaseConfig {
 }
 
 func (c *DatabaseConfig) DSN() string {
-	// ✅ Highest priority: DATABASE_URL
-	if url := os.Getenv("DATABASE_URL"); url != "" {
-		return url
+	// If we're using DATABASE_URL, return it directly
+	if c.SSLMode == "url" {
+		return c.Host
 	}
 
-	// Fallback for local/dev
+	// Otherwise, construct DSN from individual components
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.Host, c.Port, c.User, c.Password, c.Name, c.SSLMode,
