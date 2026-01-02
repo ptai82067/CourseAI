@@ -69,8 +69,16 @@ func main() {
 	// Middleware
 	app.Use(recover.New())
 	app.Use(logger.New())
+	
+	// Configure CORS with support for multiple frontend URLs (dev and production)
+	corsAllowOrigins := cfg.Server.FrontendURL
+	// In production, also allow requests from Vercel domains if VERCEL_URL is set
+	if vercelURL := os.Getenv("VERCEL_URL"); vercelURL != "" {
+		corsAllowOrigins = corsAllowOrigins + ", https://" + vercelURL + ", https://*.vercel.app"
+	}
+	
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: cfg.Server.FrontendURL,
+		AllowOrigins: corsAllowOrigins,
 		// Include Cache-Control and Pragma so browser preflight allows axios default headers
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization, Cache-Control, Pragma, X-Requested-With",
 		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
@@ -188,12 +196,15 @@ func main() {
 	}
 
 	// write chosen port to repo logs folder for scripts to pick up. Working directory is backend/, so ../logs points to repo logs.
-	portFile := "../logs/backend.port"
-	_ = os.WriteFile(portFile, []byte(strconv.Itoa(startPort)), 0644)
+	// Skip in production to avoid write permission issues
+	if os.Getenv("ENV") != "production" {
+		portFile := "../logs/backend.port"
+		_ = os.WriteFile(portFile, []byte(strconv.Itoa(startPort)), 0644)
 
-	// write PID for stop scripts
-	pidFile := "../logs/backend.pid"
-	_ = os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0644)
+		// write PID for stop scripts
+		pidFile := "../logs/backend.pid"
+		_ = os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0644)
+	}
 
 	log.Printf("🚀 Server starting on http://localhost%s", addr)
 	log.Printf("📚 Admin credentials: admin123 / admin123")
@@ -231,8 +242,10 @@ func main() {
 
 		// ensure listener closed
 		_ = listener.Close()
-		// remove pid file if present
-		_ = os.Remove(pidFile)
+		// remove pid file if present (only in development)
+		if os.Getenv("ENV") != "production" {
+			_ = os.Remove(pidFile)
+		}
 		log.Println("Graceful shutdown complete")
 	case err := <-serveErrCh:
 		if err != nil {

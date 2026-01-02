@@ -42,15 +42,12 @@ func Load() (*Config, error) {
 
 	expireHours, _ := strconv.Atoi(getEnv("JWT_EXPIRE_HOURS", "24"))
 
+	// Try to use DATABASE_URL if available (Neon, Render, etc.)
+	// Otherwise fall back to individual DB_* environment variables
+	dbConfig := parseDatabase()
+
 	return &Config{
-		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", "postgres"),
-			Name:     getEnv("DB_NAME", "courseai_db"),
-			SSLMode:  getEnv("DB_SSLMODE", "disable"),
-		},
+		Database: dbConfig,
 		JWT: JWTConfig{
 			Secret:      getEnv("JWT_SECRET", "default-secret-change-me"),
 			ExpireHours: expireHours,
@@ -62,7 +59,38 @@ func Load() (*Config, error) {
 	}, nil
 }
 
+func parseDatabase() DatabaseConfig {
+	// If DATABASE_URL is set, parse it (for Neon, Render, and other managed services)
+	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		dbConfig := DatabaseConfig{
+			SSLMode: "require", // Default to require for managed DB services
+		}
+		// Parse PostgreSQL connection string: postgres://user:password@host:port/dbname?sslmode=require
+		// For simplicity, GORM will accept the DSN as-is, so we just store the URL and use it in DSN()
+		return DatabaseConfig{
+			Host:     databaseURL, // Store the full URL to signal we're using DATABASE_URL
+			SSLMode:  "url",       // Marker to use full URL mode
+		}
+	}
+
+	// Fall back to individual environment variables (development/local setup)
+	return DatabaseConfig{
+		Host:     getEnv("DB_HOST", "localhost"),
+		Port:     getEnv("DB_PORT", "5432"),
+		User:     getEnv("DB_USER", "postgres"),
+		Password: getEnv("DB_PASSWORD", "postgres"),
+		Name:     getEnv("DB_NAME", "courseai_db"),
+		SSLMode:  getEnv("DB_SSLMODE", "disable"),
+	}
+}
+
 func (c *DatabaseConfig) DSN() string {
+	// If we're using DATABASE_URL, return it directly
+	if c.SSLMode == "url" {
+		return c.Host
+	}
+	
+	// Otherwise, construct DSN from individual components
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.Host, c.Port, c.User, c.Password, c.Name, c.SSLMode,
