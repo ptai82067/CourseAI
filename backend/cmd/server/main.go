@@ -23,6 +23,15 @@ import (
 )
 
 func main() {
+	// Debug: Log environment variables early
+	log.Println("═══════════════════════════════════════════════════════════════")
+	log.Println("🚀 CourseAI Backend Starting")
+	log.Println("═══════════════════════════════════════════════════════════════")
+	log.Printf("DATABASE_URL set: %v\n", os.Getenv("DATABASE_URL") != "")
+	log.Printf("RENDER env var: %s\n", os.Getenv("RENDER"))
+	log.Printf("ENV var: %s\n", os.Getenv("ENV"))
+	log.Println("═══════════════════════════════════════════════════════════════")
+	
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
