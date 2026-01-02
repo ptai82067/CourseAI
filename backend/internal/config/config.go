@@ -35,14 +35,25 @@ type ServerConfig struct {
 }
 
 func Load() (*Config, error) {
-	// Load .env file ONLY in development (not in Render/production)
-	// Render uses environment variables directly, not .env files
+	// Detect if running on managed platform (Render, Railway, etc)
+	// Render doesn't set explicit RENDER env var, so check if .env fails to load
+	dotenvLoaded := true
 	if os.Getenv("RENDER") != "true" && os.Getenv("ENV") != "production" {
 		if err := godotenv.Load(); err != nil {
+			dotenvLoaded = false
 			log.Println("⚠️  .env file not found (expected in development)")
 		}
 	} else {
 		log.Println("✓ Skipping .env file (production environment detected)")
+		dotenvLoaded = true
+	}
+
+	// Force DATABASE_URL on non-development environments
+	// If .env didn't load AND DATABASE_URL is empty, we're likely on Render without DATABASE_URL set
+	if !dotenvLoaded && os.Getenv("DATABASE_URL") == "" {
+		log.Fatal("FATAL: DATABASE_URL is required. " +
+			"On Render/Railway, set DATABASE_URL in Environment Variables. " +
+			"Example: postgresql://user:password@host:port/db?sslmode=require")
 	}
 
 	expireHours, _ := strconv.Atoi(getEnv("JWT_EXPIRE_HOURS", "24"))
@@ -67,35 +78,19 @@ func Load() (*Config, error) {
 func parseDatabase() DatabaseConfig {
 	databaseURL := os.Getenv("DATABASE_URL")
 	
-	// Log current environment for debugging
-	isRender := os.Getenv("RENDER") == "true"
-	isProduction := os.Getenv("ENV") == "production"
-	log.Printf("🔍 Config Debug: RENDER=%v, ENV=%s, DATABASE_URL=%s\n", isRender, os.Getenv("ENV"), 
-		func() string {
-			if databaseURL != "" {
-				return "***SET***"
-			}
-			return "NOT_SET"
-		}())
+	log.Printf("Using DATABASE_URL: %v\n", databaseURL != "")
 
-	// If DATABASE_URL is set, parse it (for Neon, Render, and other managed services)
+	// If DATABASE_URL is set, use it directly
 	if databaseURL != "" {
-		log.Println("✓ DATABASE_URL found - using managed database service")
+		log.Println("✓ DATABASE_URL found - connecting to managed database")
 		return DatabaseConfig{
-			Host:    databaseURL, // Store the full URL to signal we're using DATABASE_URL
-			SSLMode: "url",       // Marker to use full URL mode
+			Host:    databaseURL,
+			SSLMode: "url", // Marker to use full URL in DSN()
 		}
 	}
 
-	// On Render or production, DATABASE_URL is REQUIRED
-	if isRender || isProduction {
-		log.Fatal("❌ FATAL: DATABASE_URL environment variable is REQUIRED in production/Render. " +
-			"Please configure DATABASE_URL in your Render environment variables. " +
-			"Example: postgresql://user:password@host:port/dbname?sslmode=require")
-	}
-
-	// Fall back to individual environment variables (development/local setup ONLY)
-	log.Println("⚠️  Development mode: using individual DB_* environment variables")
+	// Fall back to individual DB vars (local/dev only)
+	log.Println("⚠️  Using individual DB_* variables (development mode)")
 	return DatabaseConfig{
 		Host:     getEnv("DB_HOST", "localhost"),
 		Port:     getEnv("DB_PORT", "5432"),

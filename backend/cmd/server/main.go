@@ -23,25 +23,11 @@ import (
 )
 
 func main() {
-	// CRITICAL: Check DATABASE_URL immediately - before anything else
-	// This prevents fallback to localhost in production
-	if os.Getenv("RENDER") == "true" || os.Getenv("RAILWAY_ENVIRONMENT_NAME") != "" {
-		// Running on managed platform - DATABASE_URL is REQUIRED
-		if os.Getenv("DATABASE_URL") == "" {
-			fmt.Fprintf(os.Stderr, "FATAL: DATABASE_URL is not set!\n")
-			fmt.Fprintf(os.Stderr, "On Render/Railway, set DATABASE_URL in Environment Variables\n")
-			fmt.Fprintf(os.Stderr, "Example: postgresql://user:password@host:port/db?sslmode=require\n")
-			os.Exit(1)
-		}
-	}
-
 	// Debug: Log environment variables early
 	log.Println("═══════════════════════════════════════════════════════════════")
 	log.Println("🚀 CourseAI Backend Starting")
 	log.Println("═══════════════════════════════════════════════════════════════")
 	log.Printf("DATABASE_URL set: %v\n", os.Getenv("DATABASE_URL") != "")
-	log.Printf("RENDER env var: %s\n", os.Getenv("RENDER"))
-	log.Printf("ENV var: %s\n", os.Getenv("ENV"))
 	log.Println("═══════════════════════════════════════════════════════════════")
 	
 	// Load configuration
