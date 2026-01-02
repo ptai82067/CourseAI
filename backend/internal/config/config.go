@@ -46,9 +46,6 @@ func Load() (*Config, error) {
 		log.Printf("   DATABASE_URL starts with: %.30s...\n", databaseURL)
 	} else {
 		log.Println("   ⚠️  DATABASE_URL is EMPTY or NOT SET")
-	}
-	log.Println("════════════════════════════════════════════════════════════════")
-	} else {
 		// No DATABASE_URL - try to load .env (local dev mode)
 		log.Println("\n⚠️  DATABASE_URL not found - attempting godotenv.Load()...")
 		err := godotenv.Load()
@@ -69,6 +66,9 @@ func Load() (*Config, error) {
 			log.Fatal("Exit due to missing database configuration")
 		}
 		log.Println("✓ .env file loaded successfully (development mode)")
+	}
+	log.Println("════════════════════════════════════════════════════════════════")
+
 	expireHours, _ := strconv.Atoi(getEnv("JWT_EXPIRE_HOURS", "24"))
 
 	// Try to use DATABASE_URL if available (Neon, Render, etc.)
@@ -109,6 +109,9 @@ func parseDatabase() DatabaseConfig {
 	log.Printf("  DB_NAME: %q\n", dbName)
 	log.Printf("  DB_USER: %q\n", dbUser)
 	log.Println("════════════════════════════════════════════════════════════════\n")
+
+	// If DATABASE_URL is set, use it directly
+	if databaseURL != "" {
 		log.Println("✓ DATABASE_URL found - connecting to managed database")
 		return DatabaseConfig{
 			Host:    databaseURL,
