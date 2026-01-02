@@ -25,8 +25,8 @@ type DatabaseConfig struct {
 }
 
 type JWTConfig struct {
-	Secret       string
-	ExpireHours  int
+	Secret      string
+	ExpireHours int
 }
 
 type ServerConfig struct {
@@ -64,8 +64,8 @@ func parseDatabase() DatabaseConfig {
 	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
 		log.Println("Using DATABASE_URL for database connection (managed service)")
 		return DatabaseConfig{
-			Host:     databaseURL, // Store the full URL to signal we're using DATABASE_URL
-			SSLMode:  "url",       // Marker to use full URL mode
+			Host:    databaseURL, // Store the full URL to signal we're using DATABASE_URL
+			SSLMode: "url",       // Marker to use full URL mode
 		}
 	}
 
@@ -87,12 +87,12 @@ func parseDatabase() DatabaseConfig {
 }
 
 func (c *DatabaseConfig) DSN() string {
-	// If we're using DATABASE_URL, return it directly
-	if c.SSLMode == "url" {
-		return c.Host
+	// ✅ Highest priority: DATABASE_URL
+	if url := os.Getenv("DATABASE_URL"); url != "" {
+		return url
 	}
-	
-	// Otherwise, construct DSN from individual components
+
+	// Fallback for local/dev
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.Host, c.Port, c.User, c.Password, c.Name, c.SSLMode,

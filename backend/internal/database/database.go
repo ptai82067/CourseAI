@@ -14,14 +14,14 @@ var DB *gorm.DB
 
 func Connect(dsn string) error {
 	var err error
-	
+
 	// Log connection attempt (mask password in logs if using DSN with individual components)
 	if len(dsn) > 100 || dsn[:10] == "postgres:/" {
 		log.Println("Connecting to PostgreSQL database (DATABASE_URL)...")
 	} else {
 		log.Printf("Connecting to PostgreSQL database: host=%s\n", extractHostFromDSN(dsn))
 	}
-	
+
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})

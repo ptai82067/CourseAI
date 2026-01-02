@@ -69,14 +69,14 @@ func main() {
 	// Middleware
 	app.Use(recover.New())
 	app.Use(logger.New())
-	
+
 	// Configure CORS with support for multiple frontend URLs (dev and production)
 	corsAllowOrigins := cfg.Server.FrontendURL
 	// In production, also allow requests from Vercel domains if VERCEL_URL is set
 	if vercelURL := os.Getenv("VERCEL_URL"); vercelURL != "" {
 		corsAllowOrigins = corsAllowOrigins + ", https://" + vercelURL + ", https://*.vercel.app"
 	}
-	
+
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: corsAllowOrigins,
 		// Include Cache-Control and Pragma so browser preflight allows axios default headers
@@ -244,6 +244,7 @@ func main() {
 		_ = listener.Close()
 		// remove pid file if present (only in development)
 		if os.Getenv("ENV") != "production" {
+			pidFile := ""
 			_ = os.Remove(pidFile)
 		}
 		log.Println("Graceful shutdown complete")
