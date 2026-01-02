@@ -14,8 +14,6 @@ interface TeacherLessonHistory {
   updated_at: string;
   status: string;
 }
-const data = await teachersAPI.getHistory();
-console.log('Teacher Lesson History Data:', data);
 
 export default function TeacherHistory() {
   const [history, setHistory] = useState<TeacherLessonHistory[]>([]);
